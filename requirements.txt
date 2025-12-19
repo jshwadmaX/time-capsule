@@ -3,3 +3,7 @@ gunicorn
 APScheduler
 SQLAlchemy
 cryptography
+apscheduler
+pytz
+
+
