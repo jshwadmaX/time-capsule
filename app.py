@@ -56,10 +56,16 @@ for folder in [UPLOAD_FOLDER, CAPSULES_FOLDER]:
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["CAPSULES_FOLDER"] = CAPSULES_FOLDER
 
-# Email Configuration
+# Email Configuration - WITH VALIDATION
 SENDER_EMAIL = os.getenv("SMTP_EMAIL")
 SENDER_PASSWORD = os.getenv("SMTP_PASSWORD")
 
+# Validate email credentials
+if not SENDER_EMAIL or not SENDER_PASSWORD:
+    logger.error("CRITICAL: SMTP_EMAIL or SMTP_PASSWORD not set in environment variables!")
+else:
+    logger.info(f"Email configured: {SENDER_EMAIL}")
+    logger.info(f"Password length: {len(SENDER_PASSWORD)} characters")
 
 # Encryption key (in production, store this securely, not in code!)
 ENCRYPTION_KEY = os.getenv("ENCRYPTION_SECRET", "dev-secret").encode()
@@ -189,7 +195,17 @@ def send_time_capsule_email(
     recipient_email, message, unlock_date, unlock_time, files=None, job_id=None
 ):
     """Send time capsule message via email"""
-    logger.info(f"Attempting to send time capsule to {recipient_email}")
+    logger.info(f"=== ATTEMPTING TO SEND EMAIL ===")
+    logger.info(f"To: {recipient_email}")
+    logger.info(f"From: {SENDER_EMAIL}")
+    logger.info(f"Password set: {bool(SENDER_PASSWORD)}")
+    logger.info(f"Password length: {len(SENDER_PASSWORD) if SENDER_PASSWORD else 0}")
+
+    # Check if credentials are set
+    if not SENDER_EMAIL or not SENDER_PASSWORD:
+        error_msg = "SMTP credentials not configured!"
+        logger.error(error_msg)
+        return False, error_msg
 
     try:
         msg = MIMEMultipart()
@@ -239,14 +255,22 @@ def send_time_capsule_email(
                 else:
                     logger.warning(f"File not found: {file_path}")
 
-        # Send email
-        logger.info("Connecting to SMTP server...")
-        server = smtplib.SMTP("smtp.gmail.com", 587)
+        # Send email with detailed logging
+        logger.info("Connecting to SMTP server (smtp.gmail.com:587)...")
+        server = smtplib.SMTP("smtp.gmail.com", 587, timeout=30)
+        server.set_debuglevel(1)  # Enable SMTP debug output
+        
+        logger.info("Starting TLS...")
         server.starttls()
+        
+        logger.info(f"Logging in as {SENDER_EMAIL}...")
         server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        
+        logger.info("Sending message...")
         server.send_message(msg)
+        
         server.quit()
-        logger.info(f"Email sent successfully to {recipient_email}")
+        logger.info(f"✅ EMAIL SENT SUCCESSFULLY to {recipient_email}")
 
         # Update capsule status to "sent"
         if job_id:
@@ -264,21 +288,23 @@ def send_time_capsule_email(
 
         return True, "Email sent successfully"
 
-    except smtplib.SMTPAuthenticationError:
-        error_msg = "Email authentication failed. Check sender credentials."
+    except smtplib.SMTPAuthenticationError as e:
+        error_msg = f"❌ Email authentication failed: {str(e)}"
         logger.error(error_msg)
+        logger.error("Check if you're using App Password (not regular Gmail password)")
         if job_id:
             update_capsule_status(job_id, "failed")
         return False, error_msg
     except smtplib.SMTPException as e:
-        error_msg = f"SMTP error: {str(e)}"
+        error_msg = f"❌ SMTP error: {str(e)}"
         logger.error(error_msg)
         if job_id:
             update_capsule_status(job_id, "failed")
         return False, error_msg
     except Exception as e:
-        error_msg = f"Unexpected error: {str(e)}"
+        error_msg = f"❌ Unexpected error: {str(e)}"
         logger.error(error_msg)
+        logger.exception("Full traceback:")
         if job_id:
             update_capsule_status(job_id, "failed")
         return False, error_msg
@@ -339,13 +365,20 @@ def dashboard():
                     logger.info(f"File saved: {filepath}")
 
         try:
-            # Convert date & time to datetime
-            send_datetime = datetime.strptime(
+            # Convert date & time to datetime in IST
+            ist = pytz.timezone('Asia/Kolkata')
+            send_datetime = ist.localize(datetime.strptime(
                 f"{unlock_date} {unlock_time}", "%Y-%m-%d %H:%M"
-            )
+            ))
+
+            # Get current time in IST
+            current_time_ist = datetime.now(ist)
+            
+            logger.info(f"Scheduled time (IST): {send_datetime}")
+            logger.info(f"Current time (IST): {current_time_ist}")
 
             # Check if scheduled time is in the past
-            if send_datetime <= datetime.now():
+            if send_datetime <= current_time_ist:
                 # Clean up files if time is in past
                 for f in files:
                     if os.path.exists(f):
@@ -383,13 +416,13 @@ def dashboard():
             )
 
             logger.info(
-                f"Time capsule scheduled for {send_datetime} (Job ID: {job.id})"
+                f"⏰ Time capsule scheduled for {send_datetime} IST (Job ID: {job.id})"
             )
 
             return jsonify(
                 {
                     "success": True,
-                    "message": f"⏳ Time Capsule scheduled successfully for {unlock_date} at {unlock_time}!",
+                    "message": f"⏳ Time Capsule scheduled successfully for {unlock_date} at {unlock_time} IST!",
                     "job_id": job.id,
                     "capsule_saved": capsule_path is not None,
                 }
@@ -400,9 +433,10 @@ def dashboard():
             for f in files:
                 if os.path.exists(f):
                     os.remove(f)
-            return jsonify({"success": False, "message": "Invalid date or time format"})
+            return jsonify({"success": False, "message": f"Invalid date or time format: {str(e)}"})
         except Exception as e:
             logger.error(f"Error scheduling job: {e}")
+            logger.exception("Full traceback:")
             # Clean up files on error
             for f in files:
                 if os.path.exists(f):
@@ -462,15 +496,42 @@ def list_capsules():
 @app.route("/test-email")
 def test_email():
     """Test email sending immediately"""
+    logger.info("=== TEST EMAIL ROUTE CALLED ===")
+    
+    # Check credentials first
+    if not SENDER_EMAIL or not SENDER_PASSWORD:
+        return jsonify({
+            "success": False, 
+            "message": "SMTP credentials not set in environment variables!",
+            "smtp_email": SENDER_EMAIL,
+            "password_set": bool(SENDER_PASSWORD)
+        })
+    
     success, message = send_time_capsule_email(
-        recipient_email="your-test-email@gmail.com",  # Change this
-        message="This is a test time capsule message!",
+        recipient_email=SENDER_EMAIL,  # Send to yourself for testing
+        message="This is a test time capsule message from Render deployment!",
         unlock_date=datetime.now().strftime("%Y-%m-%d"),
         unlock_time=datetime.now().strftime("%H:%M"),
         files=None,
         job_id="test_capsule",
     )
-    return jsonify({"success": success, "message": message})
+    return jsonify({
+        "success": success, 
+        "message": message,
+        "sender_email": SENDER_EMAIL,
+        "password_length": len(SENDER_PASSWORD) if SENDER_PASSWORD else 0
+    })
+
+
+@app.route("/health")
+def health():
+    """Health check endpoint for Render"""
+    return jsonify({
+        "status": "healthy",
+        "smtp_configured": bool(SENDER_EMAIL and SENDER_PASSWORD),
+        "sender_email": SENDER_EMAIL,
+        "scheduled_jobs": len(scheduler.get_jobs())
+    })
 
 
 @app.route("/instructions")
@@ -500,10 +561,13 @@ def shutdown():
 
 if __name__ == "__main__":
     try:
+        # For Render deployment
+        port = int(os.environ.get("PORT", 5000))
         app.run(
-            debug=True, use_reloader=False
-        )  # use_reloader=False prevents double scheduler
+            host="0.0.0.0",
+            port=port,
+            debug=False  # IMPORTANT: No debug mode in production
+        )
     except (KeyboardInterrupt, SystemExit):
         logger.info("Application shutdown requested")
         scheduler.shutdown()
-
