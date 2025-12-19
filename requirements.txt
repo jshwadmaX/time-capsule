@@ -1,4 +1,5 @@
 Flask
-APScheduler
-cryptography
 gunicorn
+APScheduler
+SQLAlchemy
+cryptography
