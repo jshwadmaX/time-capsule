@@ -1,0 +1,110 @@
+@import "tailwindcss";
+
+@font-face {
+    font-family: 'Nostalgia';
+    src: local('Playfair Display'), local('Georgia');
+}
+
+@theme {
+    /* Color Tokens */
+    --color-midnight: #0a0e27;
+    --color-deep-blue: #1a1f3a;
+    --color-starry: #2d3561;
+    --color-twilight: #4a5899;
+    --color-sky: #6b7fd7;
+    --color-aurora: #8ba3ff;
+    --color-stardust: #b8c5ff;
+    --color-gold: #f4d03f;
+    --color-warm-gold: #ffd700;
+
+    /* Font Family */
+    --font-display: 'Playfair Display', Georgia, serif;
+    --font-body: 'Inter', -apple-system, sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-body);
+    background: var(--color-midnight);
+    color: var(--color-stardust);
+    overflow-x: hidden;
+}
+
+h1 {
+    font-family: var(--font-display);
+    font-size: 4.5rem;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+}
+
+h2 {
+    font-family: var(--font-display);
+    font-size: 3rem;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+}
+
+h3 {
+    font-family: var(--font-display);
+    font-size: 2rem;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+p {
+    font-size: 1.125rem;
+    line-height: 1.7;
+    font-weight: 400;
+}
+
+button {
+    font-family: var(--font-body);
+}
+
+@keyframes float {
+
+    0%,
+    100% {
+        transform: translateY(0px);
+    }
+
+    50% {
+        transform: translateY(-20px);
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -1000px 0;
+    }
+
+    100% {
+        background-position: 1000px 0;
+    }
+}
+
+@keyframes glow {
+
+    0%,
+    100% {
+        opacity: 1;
+        filter: brightness(1);
+    }
+
+    50% {
+        opacity: 0.8;
+        filter: brightness(1.2);
+    }
+}

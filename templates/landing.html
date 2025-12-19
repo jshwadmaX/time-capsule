@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CronoVault - Your Digital Time Capsule</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <!-- Flask Static CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+
+    <!-- Interactive Canvas Background -->
+    <canvas id="background-canvas"></canvas>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="logo-container">
+            <div class="logo-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+            </div>
+            <span class="logo-text">CronoVault</span>
+        </div>
+        
+        <nav class="nav">
+            <a href="#features" class="nav-link">Features</a>
+            <a href="#about" class="nav-link">About</a>
+            <a href="#pricing" class="nav-link">Pricing</a>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+
+            <!-- Badge -->
+            <div class="badge">
+                <svg class="sparkle sparkle-left" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2v20M2 12h20M6 6l12 12M6 18L18 6"></path>
+                </svg>
+                <span>Preserve Your Memories Forever</span>
+                <svg class="sparkle sparkle-right" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2v20M2 12h20M6 6l12 12M6 18L18 6"></path>
+                </svg>
+            </div>
+
+            <!-- Main Heading -->
+            <h1 class="main-heading">Your Digital Time Capsule</h1>
+            <h2 class="sub-heading">Across the Stars</h2>
+
+            <!-- Description -->
+            <p class="description">
+                Capture this moment in time and send it to your future self.
+                Store memories, messages, and dreams in a vault that transcends time itself.
+            </p>
+
+            <!-- Buttons -->
+            <div class="button-container">
+                <a href="{{ url_for('signup') }}" class="btn btn-primary">
+
+                    <span class="btn-overlay"></span>
+                    <span class="btn-text">Create Your Capsule</span>
+                </a>
+                <a href="#features" class="btn btn-secondary">Learn More</a>
+            </div>
+
+        </div>
+
+        <!-- Floating Stars -->
+        <div class="floating-stars" id="floating-stars"></div>
+    </section>
+
+    <!-- Flask Static JS -->
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+
+</body>
+</html>
