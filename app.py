@@ -13,6 +13,8 @@ import json
 from cryptography.fernet import Fernet
 import base64
 import hashlib
+from apscheduler.schedulers.background import BackgroundScheduler
+import pytz
 
 # Scheduler imports with persistence
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -76,10 +78,14 @@ job_defaults = {
 }
 
 scheduler = BackgroundScheduler(
-    jobstores=jobstores, executors=executors, job_defaults=job_defaults
+    jobstores=jobstores,
+    executors=executors,
+    job_defaults=job_defaults,
+    timezone=pytz.timezone("Asia/Kolkata")
 )
+
 scheduler.start()
-logger.info("Scheduler started successfully")
+logger.info("Scheduler started successfully (IST)")
 
 
 def allowed_file(filename):
@@ -500,3 +506,4 @@ if __name__ == "__main__":
     except (KeyboardInterrupt, SystemExit):
         logger.info("Application shutdown requested")
         scheduler.shutdown()
+
