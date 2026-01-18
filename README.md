@@ -8,7 +8,8 @@ A web app that lets users send messages to their future selves — delivered at 
 ![Status](https://img.shields.io/badge/Status-Active-success)
 
 ## 🚀 Live Demo
-🔗 [https://your-app-url.onrender.com](https://time-capsule-n6ck.onrender.com/)
+🔗 [https://time-capsule.onrender.com](https://time-capsule-n6ck.onrender.com/)
+
 
 ## ✨ Features
 - 📩 Create time capsules with scheduled delivery
