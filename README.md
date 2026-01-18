@@ -15,7 +15,6 @@ A web app that lets users send messages to their future selves — delivered at 
 - 📩 Create time capsules with scheduled delivery
 - ⏰ Automatic email delivery at the chosen date
 - 🔐 Email validation and logging
-- 🗂 SQLite-based job scheduling
 - 🌐 Clean and minimal UI
 
 
