@@ -1,5 +1,5 @@
 <img width="209" height="79" alt="Screenshot (953)" src="https://github.com/user-attachments/assets/b9fa0c05-5b2d-49e7-af70-8f36f7f7ac55" />
-⏳ Time Capsule
+
 
 A web app that lets users send messages to their future selves — delivered at the perfect time.
 
