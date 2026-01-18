@@ -35,13 +35,13 @@ A web app that lets users send messages to their future selves — delivered at 
 
 ## 🧑‍💻 Installation & Run Locally
 
-```bash
+
 git clone https://github.com/jshwadmaX/time-capsule.git
 cd time-capsule
 pip install -r requirements.txt
 python app.py
-
-
+Open in browser:
+http://127.0.0.1:5000
 
 
 ## 🚧 Future Improvements
@@ -51,6 +51,6 @@ python app.py
 - Reminder notifications
 - UI/UX enhancements
 
-
+⭐ If you like this project, consider giving it a star!
 
 
