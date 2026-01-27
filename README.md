@@ -33,6 +33,8 @@ A web app that lets users send messages to their future selves — delivered at 
 4. On the delivery date, the message is emailed automatically
 
 
+<img width="1038" height="778" alt="Screenshot (961)" src="https://github.com/user-attachments/assets/ad02463e-e3ff-4797-8398-f0ea2d5a34a5" />
+
 ## 🧑‍💻 Installation & Run Locally
 
 
