@@ -5,5 +5,7 @@ SQLAlchemy
 cryptography
 apscheduler
 pytz
+resend
+
 
 
