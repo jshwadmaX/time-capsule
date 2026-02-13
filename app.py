@@ -57,7 +57,7 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["CAPSULES_FOLDER"] = CAPSULES_FOLDER
 
 # Email Configuration - WITH VALIDATION
-SENDER_EMAIL = os.getenv("SMTP_EMAIL")
+SENDER_EMAIL = os.getenv("timecapsule.app34@gmail.com")
 SENDER_PASSWORD = os.getenv("SMTP_PASSWORD")
 
 # Validate email credentials
@@ -571,3 +571,4 @@ if __name__ == "__main__":
     except (KeyboardInterrupt, SystemExit):
         logger.info("Application shutdown requested")
         scheduler.shutdown()
+
