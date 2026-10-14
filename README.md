@@ -32,11 +32,15 @@ Write a message, attach files, pick a future date — CronoVault delivers it str
 
 | Landing Page | Dashboard |
 |:---:|:---:|
-| ![Landing Page](screenshots/landing.png) | ![Dashboard](screenshots/dashboard.png) |
+| ![Landing Page](<img width="1827" height="1014" alt="Screenshot (1508)" src="https://github.com/user-attachments/assets/dc466966-be2f-4384-98bd-e3fca92fd14d" />
+) | ![Dashboard](<img width="1824" height="1007" alt="Screenshot (1510)" src="https://github.com/user-attachments/assets/939c289c-5384-4175-8773-02e25101fbf5" />
+) |
 
 | Capsule Form | Email Preview |
 |:---:|:---:|
-| ![Form](screenshots/form.png) | ![Email](screenshots/email.png) |
+| ![Form](<img width="1826" height="1014" alt="Screenshot (1511)" src="https://github.com/user-attachments/assets/8f505057-e48f-4d19-b790-80266a3f59e7" />
+) | ![Email](<img width="1920" height="906" alt="Screenshot (1509)" src="https://github.com/user-attachments/assets/9375ad46-45d0-45ef-a3f1-d3f9f9f55150" />
+) |
 
 > 💡 **Tip:** Create a `screenshots/` folder and drop your images there to populate the table above.
 
