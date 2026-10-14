@@ -1,11 +1,6 @@
 Flask
-gunicorn
 APScheduler
-SQLAlchemy
 cryptography
-apscheduler
+gunicorn
 pytz
-resend
-
-
-
+SQLAlchemy
