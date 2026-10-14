@@ -1,6 +1,11 @@
 from flask import Flask, render_template, redirect, url_for, request, jsonify
 from werkzeug.utils import secure_filename
-import resend
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email.mime.text import MIMEText
+from email.utils import formatdate
+from email import encoders
 import os
 from datetime import datetime
 import logging
@@ -28,7 +33,7 @@ logging.getLogger("apscheduler").setLevel(logging.DEBUG)
 # Configuration
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max file size
 UPLOAD_FOLDER = "uploads"
-CAPSULES_FOLDER = "capsules"
+CAPSULES_FOLDER = "capsules"  # New folder for encrypted capsules
 ALLOWED_EXTENSIONS = {
     "txt",
     "pdf",
@@ -53,17 +58,13 @@ app.config["CAPSULES_FOLDER"] = CAPSULES_FOLDER
 
 # Email Configuration
 SENDER_EMAIL = os.getenv("SMTP_EMAIL")
-RESEND_API_KEY = os.getenv("RESEND_API_KEY")
+SENDER_PASSWORD = os.getenv("SMTP_PASSWORD")
 
-# Set Resend API key
-if RESEND_API_KEY:
-    resend.api_key = RESEND_API_KEY
-    logger.info(f"Resend configured. Sender email: {SENDER_EMAIL}")
-else:
-    logger.error("CRITICAL: RESEND_API_KEY not set in environment variables!")
 
-# Encryption key
+# Encryption key (in production, store this securely, not in code!)
 ENCRYPTION_KEY = os.getenv("ENCRYPTION_SECRET", "dev-secret").encode()
+# Must be 32 bytes for Fernet
+# Generate a proper Fernet key from the secret
 cipher_key = base64.urlsafe_b64encode(hashlib.sha256(ENCRYPTION_KEY).digest())
 cipher = Fernet(cipher_key)
 
@@ -73,7 +74,7 @@ executors = {"default": ThreadPoolExecutor(max_workers=10)}
 job_defaults = {
     "coalesce": False,
     "max_instances": 3,
-    "misfire_grace_time": 3600,
+    "misfire_grace_time": 3600,  # 1 hour grace period for missed jobs
 }
 
 scheduler = BackgroundScheduler(
@@ -128,10 +129,12 @@ def save_encrypted_capsule(
             "status": "scheduled",
         }
 
+        # Encrypt the data
         encrypted_data = encrypt_capsule_data(capsule_data)
         if not encrypted_data:
             return None
 
+        # Save to file
         capsule_filename = f"capsule_{job_id}.enc"
         capsule_path = os.path.join(app.config["CAPSULES_FOLDER"], capsule_filename)
 
@@ -185,17 +188,16 @@ def update_capsule_status(job_id, status):
 def send_time_capsule_email(
     recipient_email, message, unlock_date, unlock_time, files=None, job_id=None
 ):
-    """Send time capsule message via Resend API"""
-    logger.info(f"=== ATTEMPTING TO SEND EMAIL ===")
-    logger.info(f"To: {recipient_email}")
-    logger.info(f"Resend API key set: {bool(RESEND_API_KEY)}")
-
-    if not RESEND_API_KEY:
-        error_msg = "RESEND_API_KEY not configured!"
-        logger.error(error_msg)
-        return False, error_msg
+    """Send time capsule message via email"""
+    logger.info(f"Attempting to send time capsule to {recipient_email}")
 
     try:
+        msg = MIMEMultipart()
+        msg["From"] = SENDER_EMAIL
+        msg["To"] = recipient_email
+        msg["Date"] = formatdate(localtime=True)
+        msg["Subject"] = f"🎁 Time Capsule - Unlocked on {unlock_date} at {unlock_time}"
+
         email_body = f"""
         <html>
         <body style="font-family: Arial, sans-serif; padding: 20px;">
@@ -212,27 +214,24 @@ def send_time_capsule_email(
         </html>
         """
 
-        # Build email params
-        params = {
-            "from": "Time Capsule <onboarding@resend.dev>",
-            "to": [recipient_email],
-            "subject": f"🎁 Time Capsule - Unlocked on {unlock_date} at {unlock_time}",
-            "html": email_body,
-        }
+        msg.attach(MIMEText(email_body, "html"))
 
         # Attach files if they exist
-        attachments = []
         attached_files = []
         if files:
             for file_path in files:
                 if os.path.exists(file_path):
                     try:
+                        attachment = MIMEBase("application", "octet-stream")
                         with open(file_path, "rb") as f:
-                            file_content = f.read()
-                        attachments.append({
-                            "filename": os.path.basename(file_path),
-                            "content": list(file_content),
-                        })
+                            attachment.set_payload(f.read())
+                        encoders.encode_base64(attachment)
+                        attachment.add_header(
+                            "Content-Disposition",
+                            "attachment",
+                            filename=os.path.basename(file_path),
+                        )
+                        msg.attach(attachment)
                         attached_files.append(file_path)
                         logger.info(f"Attached file: {file_path}")
                     except Exception as e:
@@ -240,31 +239,46 @@ def send_time_capsule_email(
                 else:
                     logger.warning(f"File not found: {file_path}")
 
-        if attachments:
-            params["attachments"] = attachments
+        # Send email
+        logger.info("Connecting to SMTP server...")
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        server.send_message(msg)
+        server.quit()
+        logger.info(f"Email sent successfully to {recipient_email}")
 
-        # Send via Resend
-        response = resend.Emails.send(params)
-        logger.info(f"✅ EMAIL SENT SUCCESSFULLY to {recipient_email}. ID: {response['id']}")
-
+        # Update capsule status to "sent"
         if job_id:
             update_capsule_status(job_id, "sent")
 
-        # Cleanup files after successful send
-        for file_path in attached_files:
-            try:
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-                    logger.info(f"Cleaned up file: {file_path}")
-            except Exception as e:
-                logger.error(f"Error cleaning up file {file_path}: {e}")
+        # Cleanup files ONLY after successful send
+        if attached_files:
+            for file_path in attached_files:
+                try:
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                        logger.info(f"Cleaned up file: {file_path}")
+                except Exception as e:
+                    logger.error(f"Error cleaning up file {file_path}: {e}")
 
         return True, "Email sent successfully"
 
-    except Exception as e:
-        error_msg = f"❌ Unexpected error: {str(e)}"
+    except smtplib.SMTPAuthenticationError:
+        error_msg = "Email authentication failed. Check sender credentials."
         logger.error(error_msg)
-        logger.exception("Full traceback:")
+        if job_id:
+            update_capsule_status(job_id, "failed")
+        return False, error_msg
+    except smtplib.SMTPException as e:
+        error_msg = f"SMTP error: {str(e)}"
+        logger.error(error_msg)
+        if job_id:
+            update_capsule_status(job_id, "failed")
+        return False, error_msg
+    except Exception as e:
+        error_msg = f"Unexpected error: {str(e)}"
+        logger.error(error_msg)
         if job_id:
             update_capsule_status(job_id, "failed")
         return False, error_msg
@@ -307,9 +321,11 @@ def dashboard():
         if not all([recipient_email, message, unlock_date, unlock_time]):
             return jsonify({"success": False, "message": "Please fill all fields"})
 
+        # Validate email format
         if "@" not in recipient_email:
             return jsonify({"success": False, "message": "Invalid email address"})
 
+        # Process files
         files = []
         if "files" in request.files:
             for file in request.files.getlist("files"):
@@ -323,31 +339,38 @@ def dashboard():
                     logger.info(f"File saved: {filepath}")
 
         try:
-            ist = pytz.timezone('Asia/Kolkata')
-            send_datetime = ist.localize(datetime.strptime(
+            # Convert date & time to datetime
+            ist = pytz.timezone("Asia/Kolkata")
+
+            send_datetime_naive = datetime.strptime(
                 f"{unlock_date} {unlock_time}", "%Y-%m-%d %H:%M"
-            ))
+            )
 
-            current_time_ist = datetime.now(ist)
+            send_datetime = ist.localize(send_datetime_naive)
 
-            logger.info(f"Scheduled time (IST): {send_datetime}")
-            logger.info(f"Current time (IST): {current_time_ist}")
+            # Check if scheduled time is in the past
+            if send_datetime <= datetime.now(pytz.timezone("Asia/Kolkata")):
 
-            if send_datetime <= current_time_ist:
+                # Clean up files if time is in past
                 for f in files:
                     if os.path.exists(f):
                         os.remove(f)
-                return jsonify({
-                    "success": False,
-                    "message": "⚠️ Scheduled time must be in the future!",
-                })
+                return jsonify(
+                    {
+                        "success": False,
+                        "message": "⚠️ Scheduled time must be in the future!",
+                    }
+                )
 
+            # Generate unique job ID
             job_id = f"capsule_{datetime.now().timestamp()}_{recipient_email}"
 
+            # Save encrypted capsule
             capsule_path = save_encrypted_capsule(
                 recipient_email, message, unlock_date, unlock_time, files, job_id
             )
 
+            # Schedule email
             job = scheduler.add_job(
                 send_time_capsule_email,
                 "date",
@@ -364,23 +387,28 @@ def dashboard():
                 replace_existing=False,
             )
 
-            logger.info(f"⏰ Time capsule scheduled for {send_datetime} IST (Job ID: {job.id})")
+            logger.info(
+                f"Time capsule scheduled for {send_datetime} (Job ID: {job.id})"
+            )
 
-            return jsonify({
-                "success": True,
-                "message": f"⏳ Time Capsule scheduled successfully for {unlock_date} at {unlock_time} IST!",
-                "job_id": job.id,
-                "capsule_saved": capsule_path is not None,
-            })
+            return jsonify(
+                {
+                    "success": True,
+                    "message": f"⏳ Time Capsule scheduled successfully for {unlock_date} at {unlock_time}!",
+                    "job_id": job.id,
+                    "capsule_saved": capsule_path is not None,
+                }
+            )
 
         except ValueError as e:
+            # Clean up files on error
             for f in files:
                 if os.path.exists(f):
                     os.remove(f)
-            return jsonify({"success": False, "message": f"Invalid date or time format: {str(e)}"})
+            return jsonify({"success": False, "message": "Invalid date or time format"})
         except Exception as e:
             logger.error(f"Error scheduling job: {e}")
-            logger.exception("Full traceback:")
+            # Clean up files on error
             for f in files:
                 if os.path.exists(f):
                     os.remove(f)
@@ -415,16 +443,19 @@ def list_capsules():
             capsule_data = load_encrypted_capsule(capsule_path)
 
             if capsule_data:
-                capsules.append({
-                    "job_id": capsule_data.get("job_id"),
-                    "recipient": capsule_data.get("recipient_email"),
-                    "unlock_date": capsule_data.get("unlock_date"),
-                    "unlock_time": capsule_data.get("unlock_time"),
-                    "created_at": capsule_data.get("created_at"),
-                    "status": capsule_data.get("status"),
-                    "has_files": len(capsule_data.get("files", [])) > 0,
-                    "file_count": len(capsule_data.get("files", [])),
-                })
+                # Don't expose the actual message, just metadata
+                capsules.append(
+                    {
+                        "job_id": capsule_data.get("job_id"),
+                        "recipient": capsule_data.get("recipient_email"),
+                        "unlock_date": capsule_data.get("unlock_date"),
+                        "unlock_time": capsule_data.get("unlock_time"),
+                        "created_at": capsule_data.get("created_at"),
+                        "status": capsule_data.get("status"),
+                        "has_files": len(capsule_data.get("files", [])) > 0,
+                        "file_count": len(capsule_data.get("files", [])),
+                    }
+                )
 
         return jsonify({"capsules": capsules, "count": len(capsules)})
 
@@ -436,38 +467,15 @@ def list_capsules():
 @app.route("/test-email")
 def test_email():
     """Test email sending immediately"""
-    logger.info("=== TEST EMAIL ROUTE CALLED ===")
-
-    if not RESEND_API_KEY:
-        return jsonify({
-            "success": False,
-            "message": "RESEND_API_KEY not set in environment variables!",
-        })
-
     success, message = send_time_capsule_email(
-        recipient_email=SENDER_EMAIL,
-        message="This is a test time capsule message from Render deployment!",
+        recipient_email="your-test-email@gmail.com",  # Change this
+        message="This is a test time capsule message!",
         unlock_date=datetime.now().strftime("%Y-%m-%d"),
         unlock_time=datetime.now().strftime("%H:%M"),
         files=None,
         job_id="test_capsule",
     )
-    return jsonify({
-        "success": success,
-        "message": message,
-        "sender_email": SENDER_EMAIL,
-    })
-
-
-@app.route("/health")
-def health():
-    """Health check endpoint for Render"""
-    return jsonify({
-        "status": "healthy",
-        "resend_configured": bool(RESEND_API_KEY),
-        "sender_email": SENDER_EMAIL,
-        "scheduled_jobs": len(scheduler.get_jobs())
-    })
+    return jsonify({"success": success, "message": message})
 
 
 @app.route("/instructions")
@@ -497,12 +505,11 @@ def shutdown():
 
 if __name__ == "__main__":
     try:
-        port = int(os.environ.get("PORT", 5000))
         app.run(
-            host="0.0.0.0",
-            port=port,
-            debug=False
-        )
+            debug=True, use_reloader=False
+        )  # use_reloader=False prevents double scheduler
     except (KeyboardInterrupt, SystemExit):
         logger.info("Application shutdown requested")
         scheduler.shutdown()
+
+
