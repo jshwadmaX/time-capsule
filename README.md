@@ -28,21 +28,13 @@ Write a message, attach files, pick a future date — CronoVault delivers it str
 
 ## 📸 Screenshots
 
-> _Add your screenshots here after running the app!_
-
 | Landing Page | Dashboard |
 |:---:|:---:|
-| ![Landing Page](<img width="1827" height="1014" alt="Screenshot (1508)" src="https://github.com/user-attachments/assets/dc466966-be2f-4384-98bd-e3fca92fd14d" />
-) | ![Dashboard](<img width="1824" height="1007" alt="Screenshot (1510)" src="https://github.com/user-attachments/assets/939c289c-5384-4175-8773-02e25101fbf5" />
-) |
+| <img src="https://github.com/user-attachments/assets/dc466966-be2f-4384-98bd-e3fca92fd14d" alt="Landing Page" width="100%"> | <img src="https://github.com/user-attachments/assets/939c289c-5384-4175-8773-02e25101fbf5" alt="Dashboard" width="100%"> |
 
 | Capsule Form | Email Preview |
 |:---:|:---:|
-| ![Form](<img width="1826" height="1014" alt="Screenshot (1511)" src="https://github.com/user-attachments/assets/8f505057-e48f-4d19-b790-80266a3f59e7" />
-) | ![Email](<img width="1920" height="906" alt="Screenshot (1509)" src="https://github.com/user-attachments/assets/9375ad46-45d0-45ef-a3f1-d3f9f9f55150" />
-) |
-
-> 💡 **Tip:** Create a `screenshots/` folder and drop your images there to populate the table above.
+| <img src="https://github.com/user-attachments/assets/8f505057-e48f-4d19-b790-80266a3f59e7" alt="Capsule Form" width="100%"> | <img src="https://github.com/user-attachments/assets/9375ad46-45d0-45ef-a3f1-d3f9f9f55150" alt="Email Preview" width="100%"> |
 
 ---
 
@@ -127,6 +119,7 @@ Open `.env` and set your values:
 ### 5. Load Environment Variables
 
 **Windows (PowerShell):**
+
 ```powershell
 Get-Content .env | ForEach-Object {
   if ($_ -match '^([^#][^=]+)=(.+)$') {
@@ -136,6 +129,7 @@ Get-Content .env | ForEach-Object {
 ```
 
 **macOS / Linux:**
+
 ```bash
 export $(grep -v '^#' .env | xargs)
 ```
